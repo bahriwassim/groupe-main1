@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Read(d:\\telechargements final\\groupe-main\\groupe-main\\database/**)",
+      "Bash(chmod:*)",
+      "Read(d:\\telechargements final\\groupe-main\\groupe-main\\database/**)",
+      "Bash(rm:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm run dev:*)",
+      "Bash(copy:*)",
+      "Bash(find:*)",
+      "Bash(npm run lint)",
+      "Bash(npm cache clean:*)",
+      "Bash(rd:*)",
+      "Bash(powershell:*)",
+      "Bash(taskkill:*)",
+      "Bash(npx next:*)",
+      "Bash(dir:*)",
+      "Bash(npm start)",
+      "Bash(netstat:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm ls:*)",
+      "Bash(npm run build:clean:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

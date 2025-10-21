@@ -1,0 +1,237 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Animations personnalisées pour le logo */
+@keyframes logo-glow {
+  0%, 100% { 
+    box-shadow: 
+      0 8px 32px rgba(0,0,0,0.12),
+      0 0 20px rgba(139, 69, 19, 0.3);
+  }
+  50% { 
+    box-shadow: 
+      0 16px 48px rgba(0,0,0,0.18),
+      0 0 40px rgba(139, 69, 19, 0.5);
+  }
+}
+
+@keyframes logo-shine {
+  0% { transform: translateX(-100%) skewX(-12deg); }
+  100% { transform: translateX(300%) skewX(-12deg); }
+}
+
+.logo-enhanced {
+  position: relative;
+  overflow: hidden;
+}
+
+.logo-enhanced:hover {
+  animation: logo-glow 2s ease-in-out infinite;
+}
+
+.logo-shine {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  transition: left 0.6s ease-out;
+}
+
+.logo-enhanced:hover .logo-shine {
+  left: 100%;
+}
+
+@layer base {
+  :root {
+    /* Brown-forward palette with deep accents */
+    --background: 30 20% 97%;
+    --foreground: 24 35% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+    --primary: 28 60% 32%; /* rich brown */
+    --primary-foreground: 30 35% 96%;
+    --secondary: 28 25% 92%;
+    --secondary-foreground: 24 35% 20%;
+    --muted: 28 20% 94%;
+    --muted-foreground: 28 12% 35%;
+    --accent: 215 36% 22%; /* deep blue accent */
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 28 20% 88%;
+    --input: 28 20% 88%;
+    --ring: 28 60% 32%;
+    --radius: 0.5rem;
+
+    --chart-1: 28 60% 32%;
+    --chart-2: 210 40% 30%;
+    --chart-3: 36 70% 45%;
+    --chart-4: 20 55% 55%;
+    --chart-5: 10 45% 60%;
+    
+    --sidebar-background: 28 60% 18%;
+    --sidebar-foreground: 30 35% 96%;
+    --sidebar-primary: 30 35% 96%;
+    --sidebar-primary-foreground: 28 60% 18%;
+    --sidebar-accent: 215 36% 22%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 28 20% 40% / 0.15;
+    --sidebar-ring: 28 60% 32%;
+  }
+
+  .dark {
+    --background: 28 45% 8%;
+    --foreground: 30 35% 96%;
+    --card: 28 45% 10%;
+    --card-foreground: 30 35% 96%;
+    --popover: 28 45% 10%;
+    --popover-foreground: 30 35% 96%;
+    --primary: 28 50% 35%;
+    --primary-foreground: 30 35% 96%;
+    --secondary: 28 30% 14%;
+    --secondary-foreground: 30 35% 96%;
+    --muted: 28 25% 16%;
+    --muted-foreground: 30 15% 70%;
+    --accent: 215 36% 28%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 28 25% 16%;
+    --input: 28 25% 16%;
+    --ring: 28 50% 35%;
+    
+    --chart-1: 28 50% 35%;
+    --chart-2: 215 36% 28%;
+    --chart-3: 36 80% 50%;
+    --chart-4: 20 70% 60%;
+    --chart-5: 10 65% 65%;
+    
+    --sidebar-background: 28 50% 12%;
+    --sidebar-foreground: 30 35% 96%;
+    --sidebar-primary: 30 35% 96%;
+    --sidebar-primary-foreground: 28 60% 18%;
+    --sidebar-accent: 215 36% 28%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 28 25% 16%;
+    --sidebar-ring: 28 50% 35%;
+  }
+}
+
+/* Animations pour les produits */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Animations pour le preloader */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2s ease-in-out infinite;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out both;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.4s ease-out 0.2s both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out;
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  h1,h2,h3,h4,h5,h6 {
+    @apply font-headline;
+  }
+}

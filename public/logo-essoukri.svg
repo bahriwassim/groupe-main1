@@ -1,0 +1,26 @@
+<svg width="300" height="120" viewBox="0 0 300 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="300" height="120" rx="8" fill="#2563eb" stroke="#1e40af" stroke-width="2"/>
+
+  <!-- Main text -->
+  <text x="150" y="40" text-anchor="middle" fill="white" font-size="24" font-weight="bold" font-family="serif">
+    ESSOUKRI
+  </text>
+
+  <!-- Subtitle -->
+  <text x="150" y="65" text-anchor="middle" fill="#e5e7eb" font-size="14" font-family="serif">
+    Artisans Pâtissiers depuis 1955
+  </text>
+
+  <!-- Decorative elements -->
+  <circle cx="30" cy="60" r="8" fill="#fbbf24"/>
+  <circle cx="270" cy="60" r="8" fill="#fbbf24"/>
+
+  <!-- Bottom line -->
+  <line x1="50" y1="85" x2="250" y2="85" stroke="#e5e7eb" stroke-width="1"/>
+
+  <!-- Location -->
+  <text x="150" y="100" text-anchor="middle" fill="#d1d5db" font-size="12" font-family="sans-serif">
+    Tunis, Tunisie
+  </text>
+</svg>

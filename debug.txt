@@ -1,0 +1,26 @@
+PS D:\telechargements final\groupe-main\groupe-main> npm run build
+
+> essoukri-artisans-patissiers@0.1.0 build
+> next build
+
+   ▲ Next.js 15.3.3
+   - Environments: .env.local, .env.production
+   - Experiments (use with caution):
+     ✓ webpackBuildWorker
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 3.5min
+   Linting and checking validity of types  ...Failed to compile.
+
+./src/lib/supabase-service.ts:2172:47
+Type error: Cannot find name 'productionOrder'. Did you mean 'getProductionOrders'?
+
+  2170 |     return result;
+  2171 |
+> 2172 |     console.log('📋 Statut actuel de l\'OF:', productionOrder.status);
+       |                                               ^
+  2173 |
+  2174 |     // Logique plus souple pour les permissions - permettre la validation dans plusieurs statuts
+  2175 |     const allowedStatusesForProduction = ['cree', 'validation_production', 'production_validee', 'en_fabrication'];
+Next.js build worker exited with code: 1 and signal: null
+PS D:\telechargements final\groupe-main\groupe-main>
