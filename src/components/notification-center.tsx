@@ -48,126 +48,112 @@ export function NotificationCenter() {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 max-w-md w-full px-4 pointer-events-none">
-      <Card className="shadow-lg border-2 pointer-events-auto">
-        <CardContent className="p-0">
-          {/* Header toujours visible */}
-          <div
-            className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition-colors"
-            onClick={() => setIsExpanded(!isExpanded)}
+    <div className="w-full">
+      <Button
+        variant="ghost"
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full justify-start relative"
+      >
+        {notifications.length > 0 ? (
+          <BellRing className="w-5 h-5 text-blue-600 animate-pulse mr-2" />
+        ) : (
+          <Bell className="w-5 h-5 text-muted-foreground mr-2" />
+        )}
+        <span>Notifications</span>
+        {unreadCount > 0 && (
+          <Badge
+            variant="destructive"
+            className="ml-auto h-5 w-5 flex items-center justify-center p-0 text-xs"
           >
-            <div className="flex items-center gap-2">
-              {notifications.length > 0 ? (
-                <BellRing className="w-5 h-5 text-blue-600 animate-pulse" />
-              ) : (
-                <Bell className="w-5 h-5 text-muted-foreground" />
-              )}
-              <span className="font-medium text-sm">
-                Notifications
-              </span>
-              {unreadCount > 0 && (
-                <Badge variant="destructive" className="ml-1">
-                  {unreadCount}
-                </Badge>
-              )}
-              {notifications.length > unreadCount && (
-                <Badge variant="secondary" className="ml-1">
-                  {notifications.length}
-                </Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {notifications.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    clearAll();
-                  }}
-                  className="text-xs"
-                >
-                  Tout effacer
-                </Button>
-              )}
-              <Button variant="ghost" size="sm">
-                {isExpanded ? '▲' : '▼'}
-              </Button>
-            </div>
-          </div>
+            {unreadCount}
+          </Badge>
+        )}
+      </Button>
 
-          {/* Liste des notifications */}
-          <AnimatePresence>
-            {isExpanded && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="border-t"
-              >
-                <div className="max-h-80 overflow-y-auto">
-                  {notifications.map((notification) => (
-                    <motion.div
-                      key={notification.id}
-                      initial={{ x: 300, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      exit={{ x: 300, opacity: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className={`p-4 border-b last:border-b-0 ${getNotificationColor(notification.type)}`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3 flex-1">
-                          <span className="text-lg">
-                            {getNotificationIcon(notification.type)}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-sm">
-                              {notification.title}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-2">
+              <Card className="shadow-sm border">
+                <CardContent className="p-0">
+                  {/* Header */}
+                  <div className="flex items-center justify-between p-3 border-b bg-muted/30">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-xs">Notifications</span>
+                      {notifications.length > 0 && (
+                        <Badge variant="secondary" className="h-5 text-xs">{notifications.length}</Badge>
+                      )}
+                    </div>
+                    {notifications.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearAll}
+                        className="text-xs h-6"
+                      >
+                        Effacer
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Liste des notifications */}
+                  <div className="max-h-64 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-muted-foreground">
+                        <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-xs">Aucune notification</p>
+                      </div>
+                    ) : (
+                      notifications.map((notification) => (
+                        <div
+                          key={notification.id}
+                          className={`p-2 border-b last:border-b-0 ${getNotificationColor(notification.type)}`}
+                        >
+                          <div className="flex items-start justify-between gap-1">
+                            <div className="flex items-start gap-1.5 flex-1 min-w-0">
+                              <span className="text-sm shrink-0">
+                                {getNotificationIcon(notification.type)}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-xs">
+                                  {notification.title}
+                                </div>
+                                <div className="text-xs opacity-90 mt-0.5 line-clamp-2">
+                                  {notification.message}
+                                </div>
+                                <div className="text-xs opacity-70 mt-0.5">
+                                  {notification.timestamp.toLocaleTimeString('fr-FR', {
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </div>
+                              </div>
                             </div>
-                            <div className="text-sm opacity-90 mt-1">
-                              {notification.message}
-                            </div>
-                            <div className="text-xs opacity-70 mt-2">
-                              {notification.timestamp.toLocaleTimeString('fr-FR', {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {notification.notificationType && (
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={async () => {
-                                await markAsRead(notification.id);
-                                await refreshNotifications();
-                              }}
-                              className="text-xs text-blue-600 hover:text-blue-800"
+                              onClick={() => removeNotification(notification.id)}
+                              className="shrink-0 h-5 w-5 p-0"
                             >
-                              Marquer lu
+                              <X className="w-3 h-3" />
                             </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeNotification(notification.id)}
-                            className="text-muted-foreground hover:text-foreground"
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
+                          </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </CardContent>
-      </Card>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -16,12 +16,13 @@ export function getSupabaseClient(): SupabaseClient {
 
   supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
-      persistSession: false,
-      autoRefreshToken: false,
+      persistSession: true,
+      autoRefreshToken: true,
     },
     global: {
       headers: {
-        'X-Client-Info': 'essoukri-artisans-singleton'
+        'X-Client-Info': 'essoukri-artisans-singleton',
+        'apikey': supabaseAnonKey
       }
     }
   })

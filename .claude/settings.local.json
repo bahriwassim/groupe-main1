@@ -24,7 +24,15 @@
       "Bash(npm ls:*)",
       "Bash(npm run build:clean:*)",
       "Bash(tasklist:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(npx supabase:*)",
+      "Bash(npx kill-port 3000)",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(node scripts/fix-trigger.mjs:*)",
+      "Bash(psql \"postgresql://postgres.kmgmhgqopmlxtdhnugpz:LeS20!0Groupe!AnisPM!@aws-0-eu-central-1.pooler.supabase.com:6543/postgres\" -f \"database\\FIX_ORDER_ID_AMBIGUOUS.sql\")",
+      "Bash(node scripts/apply-order-id-fix.mjs:*)",
+      "Bash(node scripts/execute-sql-fix.mjs:*)",
+      "Bash(psql \"postgresql://postgres.kmgmhgqopmlxtdhnugpz:LeS20!0Groupe!AnisPM!@aws-0-eu-central-1.pooler.supabase.com:6543/postgres\" -c \"SELECT pg_get_functiondef(''update_production_order_status_from_items''::regproc);\")"
     ],
     "deny": [],
     "ask": []

@@ -15,12 +15,13 @@ export const supabase = createClient(
   supabaseAnonKey || 'placeholder-key',
   {
     auth: {
-      persistSession: false,
-      autoRefreshToken: false,
+      persistSession: true,
+      autoRefreshToken: true,
     },
     global: {
       headers: {
-        'X-Client-Info': 'essoukri-artisans'
+        'X-Client-Info': 'essoukri-artisans',
+        'apikey': supabaseAnonKey
       }
     }
   }

@@ -100,11 +100,12 @@ BEGIN
     'info',
     'production_order',
     NEW.id,
-    NEW.production_date,
+    COALESCE(NEW.delivery_date, NEW.scheduled_start),
     jsonb_build_object(
       'order_number', NEW.order_number,
       'laboratory', NEW.laboratory,
-      'production_date', NEW.production_date
+      'delivery_date', NEW.delivery_date,
+      'scheduled_start', NEW.scheduled_start
     )
   );
   RETURN NEW;
@@ -184,11 +185,11 @@ BEGIN
 
   -- Vérifier les ordres de fabrication qui arrivent à échéance dans 30 minutes
   FOR production_rec IN
-    SELECT p.id, p.order_number, p.production_date, p.laboratory
+    SELECT p.id, p.order_number, COALESCE(p.delivery_date, p.scheduled_start) as production_date, p.laboratory
     FROM production_orders p
     WHERE p.status NOT IN ('termine', 'annule')
-      AND p.production_date IS NOT NULL
-      AND p.production_date BETWEEN NOW() AND (NOW() + alert_threshold)
+      AND COALESCE(p.delivery_date, p.scheduled_start) IS NOT NULL
+      AND COALESCE(p.delivery_date, p.scheduled_start) BETWEEN NOW() AND (NOW() + alert_threshold)
       -- Vérifier qu'on n'a pas déjà créé d'alerte pour cet ordre
       AND NOT EXISTS (
         SELECT 1 FROM notifications n
@@ -219,7 +220,7 @@ BEGIN
       jsonb_build_object(
         'order_number', production_rec.order_number,
         'laboratory', production_rec.laboratory,
-        'production_date', production_rec.production_date
+        'delivery_date', production_rec.production_date
       )
     );
   END LOOP;
@@ -247,6 +248,6 @@ COMMENT ON TABLE notifications IS 'Table pour stocker les notifications du syst�
 COMMENT ON COLUMN notifications.type IS 'Type de notification: order_created, production_created, deadline_alert, status_change';
 COMMENT ON COLUMN notifications.severity IS 'Niveau de gravité: info, warning, error, success';
 COMMENT ON COLUMN notifications.entity_type IS 'Type d''entité concernée: order, production_order';
-COMMENT ON COLUMN notifications.related_date IS 'Date de l''événement (delivery_date ou production_date)';
+COMMENT ON COLUMN notifications.related_date IS 'Date de l''événement (delivery_date pour commandes, delivery_date/scheduled_start pour ordres de fabrication)';
 COMMENT ON FUNCTION check_deadline_alerts() IS 'Fonction à exécuter périodiquement (toutes les 5-10 minutes) pour vérifier les échéances à venir';
 COMMENT ON FUNCTION cleanup_old_notifications() IS 'Fonction à exécuter quotidiennement pour nettoyer les anciennes notifications';

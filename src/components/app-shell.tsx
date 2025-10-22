@@ -12,7 +12,8 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarFooter,
-  SidebarInset
+  SidebarInset,
+  SidebarTrigger
 } from '@/components/ui/sidebar';
 import {
   Select,
@@ -25,50 +26,57 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useRole, UserRole, ALL_ROLES } from '@/hooks/use-role';
-import { ChefHat, LayoutDashboard, ShoppingCart, UtensilsCrossed, Calendar, FileText, BarChart2, UserCog, Package, Settings, LifeBuoy, Factory, Users, TrendingUp } from 'lucide-react';
+import { ChefHat, LayoutDashboard, ShoppingCart, UtensilsCrossed, Calendar, FileText, BarChart2, UserCog, Package, Settings, LifeBuoy, Factory, Users, TrendingUp, PackageOpen } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { NotificationCenter } from '@/components/notification-center';
 
 const navItems = [
-  { 
-    href: '/', 
-    label: 'Tableau de bord', 
-    icon: LayoutDashboard, 
+  {
+    href: '/',
+    label: 'Tableau de bord',
+    icon: LayoutDashboard,
     roles: ['Admin', 'Sales', 'Planning', 'Accounting'],
     description: 'Vue d\'ensemble de l\'activité'
   },
-  { 
-    href: '/products', 
-    label: 'Produits', 
-    icon: Package, 
+  {
+    href: '/products',
+    label: 'Produits',
+    icon: Package,
     roles: ['Admin', 'Sales', 'Planning'],
     description: 'Gestion du catalogue produits'
   },
-  { 
-    href: '/orders', 
-    label: 'Commandes', 
-    icon: ShoppingCart, 
+  {
+    href: '/packs',
+    label: 'Packs',
+    icon: PackageOpen,
+    roles: ['Admin'],
+    description: 'Gestion des packs de produits'
+  },
+  {
+    href: '/orders',
+    label: 'Commandes',
+    icon: ShoppingCart,
     roles: ['Admin', 'Sales', 'Planning', 'Accounting'],
     description: 'Suivi des commandes clients'
   },
-  { 
-    href: '/calendar', 
-    label: 'Calendrier', 
-    icon: Calendar, 
+  {
+    href: '/calendar',
+    label: 'Calendrier',
+    icon: Calendar,
     roles: ['Admin', 'Sales', 'Planning', 'Production', 'Quality'],
     description: 'Planning et organisation'
   },
-  { 
-    href: '/production', 
-    label: 'Production', 
-    icon: UtensilsCrossed, 
+  {
+    href: '/production',
+    label: 'Production',
+    icon: UtensilsCrossed,
     roles: ['Admin', 'Planning', 'Production', 'Quality'],
     description: 'Gestion de la production'
   },
-  { 
-    href: '/production/production-orders', 
-    label: 'Ordres de Fabrication', 
-    icon: Factory, 
+  {
+    href: '/production/production-orders',
+    label: 'Ordres de Fabrication',
+    icon: Factory,
     roles: ['Admin', 'Planning', 'Production', 'Quality'],
     description: 'Suivi des ordres de fabrication'
   },
@@ -110,6 +118,13 @@ export function AppShell({ children, title }: { children: React.ReactNode, title
               </SidebarMenuItem>
             ))}
           </SidebarMenu>
+
+          <Separator className="my-4" />
+
+          {/* Notifications dans la sidebar */}
+          <div className="px-3">
+            <NotificationCenter />
+          </div>
         </SidebarContent>
         <SidebarFooter>
           <Separator className="my-2" />
@@ -169,12 +184,13 @@ export function AppShell({ children, title }: { children: React.ReactNode, title
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        {/* Navbar avec notifications */}
-        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container flex h-14 items-center justify-end px-4">
-            <NotificationCenter />
-          </div>
+        {/* Header avec trigger mobile */}
+        <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4 md:hidden">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <h1 className="text-lg font-semibold">{title || 'Essoukri'}</h1>
         </header>
+
         <main className="min-h-screen bg-background">
           {children}
         </main>

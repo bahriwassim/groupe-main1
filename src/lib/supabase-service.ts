@@ -1,5 +1,5 @@
 import { supabase } from './supabase-client';
-import type { Order, Client, Product, OrderItem, PaymentType, ValidationStatus, ValidationType, ValidationPriority, ProductionValidation, OrderQualityDetails } from './types';
+import type { Order, Client, Product, OrderItem, PaymentType, ValidationStatus, ValidationType, ValidationPriority, ProductionValidation, OrderQualityDetails, Pack } from './types';
 
 export interface SubCategory {
   id: string;
@@ -222,6 +222,57 @@ export async function updateProduct(productId: string, product: Product): Promis
     categoryId = newCategory.id;
   }
 
+  // Si l'ID a changé, supprimer l'ancien et créer un nouveau
+  if (product.id !== productId) {
+    console.log('🔄 Changement d\'ID produit:', productId, '→', product.id);
+
+    // Supprimer l'ancien produit
+    const { error: deleteError } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', productId);
+
+    if (deleteError) {
+      console.error('Erreur suppression ancien produit:', deleteError);
+      return null;
+    }
+
+    // Créer le nouveau produit avec le nouvel ID
+    const { data: newProduct, error: insertError } = await supabase
+      .from('products')
+      .insert({
+        id: product.id,
+        name: product.name,
+        category_id: categoryId,
+        price: product.price,
+        unit: product.unit,
+        image_url: product.imageUrl,
+        description: product.description
+      })
+      .select(`
+        *,
+        categories!inner(name)
+      `)
+      .single();
+
+    if (insertError) {
+      console.error('Erreur création nouveau produit:', insertError);
+      return null;
+    }
+
+    return {
+      id: newProduct.id,
+      name: newProduct.name,
+      category: newProduct.categories.name,
+      subFamily: undefined,
+      price: newProduct.price,
+      unit: newProduct.unit as any,
+      imageUrl: newProduct.image_url || '/placeholder-product.jpg',
+      description: newProduct.description || '',
+      'data-ai-hint': newProduct.name.toLowerCase()
+    };
+  }
+
   const performUpdate = async (unitValue: string | undefined) => {
     return supabase
       .from('products')
@@ -279,31 +330,46 @@ export async function updateProduct(productId: string, product: Product): Promis
 
 // Commandes
 export async function getOrders(): Promise<Order[]> {
+  // TEMPORAIRE: Requête avec colonnes explicites pour éviter l'erreur 400
+  console.log('🔍 Tentative de récupération des commandes...');
+
   const { data, error } = await supabase
     .from('orders')
     .select(`
-      *,
-      order_items(
-        id,
-        product_id,
-        quantity,
-        unit_price,
-        total_price,
-        description
-      ),
-      order_status_history(
-        status,
-        note,
-        changed_at
-      )
+      id,
+      order_number,
+      customer_id,
+      status,
+      delivery_date,
+      delivery_time,
+      total_amount,
+      discount,
+      advance,
+      second_advance,
+      remaining_amount,
+      payment_type,
+      needs_invoice,
+      notes,
+      created_at,
+      updated_at,
+      created_by,
+      lab_delivery_hours
     `)
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('Erreur lors de la récupération des commandes:', error);
+    console.error('🚨 ERREUR getOrders - Détails complets:', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint
+    });
     return [];
   }
 
+  console.log('✅ Commandes récupérées:', data?.length || 0);
+
+  // TEMPORAIRE: Mapping simplifié sans JOINs
   return data?.map((order: any) => ({
     id: order.id,
     orderNumber: order.order_number,
@@ -312,25 +378,14 @@ export async function getOrders(): Promise<Order[]> {
     deliveryDate: new Date(order.delivery_date),
     deliveryTime: order.delivery_time,
     status: order.status,
-    statusHistory: order.order_status_history?.map((history: any) => ({
-      status: history.status,
-      timestamp: new Date(history.changed_at),
-      note: history.note
-    })).sort((a: any, b: any) => b.timestamp.getTime() - a.timestamp.getTime()) || [
+    statusHistory: [
       {
         status: order.status,
         timestamp: new Date(order.created_at),
         note: 'Commande créée'
       }
     ],
-    items: order.order_items?.map((item: any) => ({
-      id: item.id,
-      productId: item.product_id,
-      quantity: item.quantity,
-      unitPrice: item.unit_price,
-      total: item.total_price,
-      description: item.description
-    })) || [],
+    items: [], // Sera chargé séparément si nécessaire
     total: order.total_amount,
     discount: order.discount || 0,
     advance: order.advance || 0,
@@ -338,7 +393,8 @@ export async function getOrders(): Promise<Order[]> {
     remaining: order.remaining_amount,
     paymentType: order.payment_type as PaymentType,
     needsInvoice: order.needs_invoice || false,
-    notes: order.notes
+    notes: order.notes,
+    createdBy: order.created_by || undefined
   })) || [];
 }
 
@@ -346,7 +402,24 @@ export async function getValidatedOrders(): Promise<Order[]> {
   const { data, error } = await supabase
     .from('orders')
     .select(`
-      *,
+      id,
+      order_number,
+      customer_id,
+      status,
+      delivery_date,
+      delivery_time,
+      total_amount,
+      discount,
+      advance,
+      second_advance,
+      remaining_amount,
+      payment_type,
+      needs_invoice,
+      notes,
+      created_at,
+      updated_at,
+      created_by,
+      lab_delivery_hours,
       order_items(
         id,
         product_id,
@@ -576,6 +649,7 @@ export async function createOrder(orderData: {
   paymentType?: PaymentType;
   needsInvoice?: boolean;
   notes?: string;
+  createdBy?: string;
 }): Promise<Order | null> {
   try {
     // Validation minimale des entrées
@@ -612,14 +686,16 @@ export async function createOrder(orderData: {
     const year = today.getFullYear();
     const orderNumber = `BC-${year}-${String(Date.now()).slice(-6)}`;
 
-    const remaining = orderData.total - (orderData.discount || 0) - (orderData.advance || 0) - (orderData.secondAdvance || 0);
+    // Le total reçu est déjà le montant après remise, donc on ne déduit que les avances
+    const remaining = orderData.total - (orderData.advance || 0) - (orderData.secondAdvance || 0);
 
-    // Préparer les données d'insertion (statut DB par défaut)
-    const baseInsert = {
+    // Préparer les données d'insertion avec le statut 'Saisi' par défaut
+    const orderInsertData = {
       order_number: orderNumber,
       customer_id: customerId,
       delivery_date: orderData.deliveryDate.toISOString(),
       delivery_time: orderData.deliveryTime,
+      status: 'Saisi', // Utiliser directement 'Saisi' qui fonctionne
       total_amount: orderData.total,
       discount: orderData.discount || 0,
       advance: orderData.advance || 0,
@@ -628,33 +704,25 @@ export async function createOrder(orderData: {
       payment_type: orderData.paymentType,
       needs_invoice: orderData.needsInvoice || false,
       notes: orderData.notes
-    } as any;
+    };
 
-    // 1er essai: statut DB moderne
-    let orderResult: any | null = null;
-    let orderError: any | null = null;
-    {
-      const { data, error } = await supabase
-        .from('orders')
-        .insert({ ...baseInsert, status: 'en_attente' })
-        .select()
-        .single();
-      orderResult = data;
-      orderError = error;
-    }
+    console.log('🔍 Création commande avec données:', orderInsertData);
 
-    // Si contrainte sur statut, réessayer avec l'ancien libellé
-    if (orderError && orderError.code === '23514') {
-      const { data, error } = await supabase
-        .from('orders')
-        .insert({ ...baseInsert, status: 'Saisi' })
-        .select()
-        .single();
-      orderResult = data;
-      orderError = error;
-    }
+    // Insérer la commande
+    const { data: orderResult, error: orderError } = await supabase
+      .from('orders')
+      .insert(orderInsertData)
+      .select()
+      .single();
 
     if (orderError) {
+      console.error('🚨 ÉCHEC CRÉATION COMMANDE:', {
+        code: orderError.code,
+        message: orderError.message,
+        details: orderError.details,
+        hint: orderError.hint,
+        données_envoyées: orderInsertData
+      });
       throw orderError;
     }
 
@@ -673,6 +741,13 @@ export async function createOrder(orderData: {
       .insert(orderItems);
 
     if (itemsError) {
+      console.error('🚨 ÉCHEC CRÉATION ITEMS - Erreur complète:', {
+        code: itemsError.code,
+        message: itemsError.message,
+        details: itemsError.details,
+        hint: itemsError.hint,
+        items_envoyés: orderItems
+      });
       throw itemsError;
     }
 
@@ -680,11 +755,15 @@ export async function createOrder(orderData: {
     const orders = await getOrders();
     return orders.find(order => order.id === orderResult.id) || null;
 
-  } catch (error) {
-    console.error('Erreur lors de la création de la commande:', error);
-    console.error('Détails de l\'erreur:', JSON.stringify(error, null, 2));
-    console.error('orderData:', orderData || null);
-    return null;
+  } catch (error: any) {
+    console.error('❌❌❌ ERREUR lors de la création de la commande:', error);
+    console.error('Message:', error?.message);
+    console.error('Code:', error?.code);
+    console.error('Details:', error?.details);
+    console.error('Hint:', error?.hint);
+    console.error('Détails complets:', JSON.stringify(error, null, 2));
+    console.error('orderData envoyé:', orderData || null);
+    throw error; // On relance l'erreur pour qu'elle soit capturée dans le formulaire
   }
 }
 
@@ -1607,8 +1686,19 @@ export async function updateProductionOrderStatus(
     if (error) throw error;
 
     // Synchroniser les statuts des commandes liées après succès
-    // Mais seulement si l'OF est complètement terminé (qualité validée)
-    if (nextStatus === 'termine' || nextStatus === 'qualite_validee') {
+    // Pour tous les changements de statut significatifs
+    const statusesToSync: ProductionOrder['status'][] = [
+      'production_validee',
+      'qualite_validee',
+      'en_fabrication',
+      'production_terminee',
+      'termine',
+      'non_conforme',
+      'annule'
+    ];
+
+    if (statusesToSync.includes(nextStatus)) {
+      console.log('🔄 Déclenchement synchronisation BC pour statut OF:', nextStatus);
       await synchronizeOrderStatusWithProductionOrders(orderId);
     }
 
@@ -1712,38 +1802,59 @@ function calculateOrderStatusFromProductionOrders(productionOrders: any[]): stri
 
   const statusCounts = {
     termine: productionOrders.filter(po => po.status === 'termine').length,
+    production_terminee: productionOrders.filter(po => po.status === 'production_terminee').length,
     en_fabrication: productionOrders.filter(po => po.status === 'en_fabrication').length,
     qualite_validee: productionOrders.filter(po => po.status === 'qualite_validee').length,
     validation_qualite: productionOrders.filter(po => po.status === 'validation_qualite').length,
     production_validee: productionOrders.filter(po => po.status === 'production_validee').length,
     validation_production: productionOrders.filter(po => po.status === 'validation_production').length,
     non_conforme: productionOrders.filter(po => po.status === 'non_conforme').length,
-    annule: productionOrders.filter(po => po.status === 'annule').length
+    annule: productionOrders.filter(po => po.status === 'annule').length,
+    cree: productionOrders.filter(po => po.status === 'cree').length
   };
 
   const total = productionOrders.length;
 
-  // Si tous les ordres sont terminés
-  if (statusCounts.termine === total) {
+  console.log('📊 Calcul statut BC depuis OF:', { statusCounts, total });
+
+  // Si tous les ordres sont terminés (termine ou production_terminee)
+  if (statusCounts.termine === total || (statusCounts.termine + statusCounts.production_terminee) === total) {
+    console.log('✅ Tous les OF terminés → BC Terminé');
     return 'Terminé';
   }
 
   // Si au moins un ordre est non conforme ou annulé
   if (statusCounts.non_conforme > 0 || statusCounts.annule > 0) {
+    console.log('❌ OF non conforme/annulé détecté → BC Annulé');
     return 'Annulé';
   }
 
-  // Si au moins un ordre est en fabrication ou validé qualité
-  if (statusCounts.en_fabrication > 0 || statusCounts.qualite_validee > 0) {
+  // Si au moins un ordre est en fabrication
+  if (statusCounts.en_fabrication > 0) {
+    console.log('🏭 OF en fabrication détecté → BC En fabrication');
     return 'En fabrication';
   }
 
-  // Si tous les ordres sont au moins validés production
-  if (statusCounts.production_validee + statusCounts.validation_qualite + statusCounts.qualite_validee + statusCounts.en_fabrication + statusCounts.termine === total) {
+  // Si tous les ordres sont au moins validés (prêts pour fabrication)
+  const validatedCount = statusCounts.production_validee +
+                        statusCounts.validation_qualite +
+                        statusCounts.qualite_validee +
+                        statusCounts.production_terminee +
+                        statusCounts.termine;
+
+  if (validatedCount === total) {
+    console.log('✓ Tous les OF validés → BC Validé (prêt)');
+    return 'pret'; // Nouveau statut pour indiquer que tout est prêt
+  }
+
+  // Si au moins un ordre est validé
+  if (validatedCount > 0) {
+    console.log('⏳ Certains OF validés → BC Validé');
     return 'Validé';
   }
 
   // Sinon, garder le statut par défaut
+  console.log('📝 Aucun OF validé → BC Saisi');
   return 'Saisi';
 }
 
@@ -2153,24 +2264,117 @@ export async function validateProductionOrderItem(
   itemId: string,
   validationType: 'production' | 'quality',
   status: 'approved' | 'rejected',
-  userId: string,
+  userId?: string, // Optionnel car la colonne est UUID dans la BD
   quantityProduced?: number,
   notes?: string
 ): Promise<boolean> {
   try {
-    // Utiliser la nouvelle version corrigée de la validation
-    const { validateProductionOrderItem: validateFixed } = await import('./supabase-service-fixed');
-    const result = await validateFixed(orderId, itemId, validationType, status, userId, quantityProduced, notes);
+    console.log('🔍 Validation produit:', {
+      orderId,
+      itemId,
+      validationType,
+      status,
+      userId,
+      quantityProduced,
+      notes
+    });
 
-    // Si la validation réussit, mettre à jour le statut global
-    if (result) {
-      await checkAndUpdateOverallStatus(orderId, validationType);
+    // Vérifier d'abord que l'ordre de production existe
+    const { data: productionOrder, error: poError } = await supabase
+      .from('production_orders')
+      .select('id, status, order_number')
+      .eq('id', orderId)
+      .single();
+
+    if (poError || !productionOrder) {
+      console.error('❌ Ordre de production non trouvé:', poError);
+      throw new Error(`Ordre de production non trouvé: ${poError?.message || 'ID invalide'}`);
     }
 
-    return result;
+    console.log('📋 Statut actuel de l\'OF:', productionOrder.status);
+
+    // Vérifier que l'item existe
+    const { data: existingItem, error: itemError } = await supabase
+      .from('production_order_items')
+      .select('*')
+      .eq('id', itemId)
+      .eq('production_order_id', orderId)
+      .single();
+
+    if (itemError || !existingItem) {
+      console.error('❌ Item non trouvé:', itemError);
+      throw new Error(`Item non trouvé: ${itemError?.message || 'ID invalide'}`);
+    }
+
+    console.log('📦 Item trouvé:', existingItem);
+
+    // Préparer les données de mise à jour
+    const updateData: any = {};
+    const now = new Date().toISOString();
+
+    if (validationType === 'production') {
+      updateData.production_status = status;
+      updateData.production_validated_at = now;
+      // Ne pas inclure userId si undefined (colonne UUID dans la BD)
+      if (userId) {
+        updateData.production_validated_by = userId;
+      }
+      if (quantityProduced !== undefined) {
+        updateData.quantity_produced = quantityProduced;
+      }
+    } else if (validationType === 'quality') {
+      updateData.quality_status = status;
+      updateData.quality_validated_at = now;
+      // Ne pas inclure userId si undefined (colonne UUID dans la BD)
+      if (userId) {
+        updateData.quality_validated_by = userId;
+      }
+    }
+
+    if (notes) {
+      updateData.validation_notes = notes;
+    }
+
+    console.log('📊 Données à mettre à jour:', updateData);
+
+    // Effectuer la mise à jour
+    // Note: select() spécifique pour éviter l'ambiguïté avec order_id lors des jointures RLS
+    const { data, error } = await supabase
+      .from('production_order_items')
+      .update(updateData)
+      .eq('id', itemId)
+      .eq('production_order_id', orderId)
+      .select(`
+        id,
+        production_order_id,
+        product_id,
+        quantity,
+        unit,
+        production_status,
+        quality_status,
+        quantity_produced,
+        production_validated_at,
+        production_validated_by,
+        quality_validated_at,
+        quality_validated_by,
+        validation_notes
+      `);
+
+    if (error) {
+      console.error('❌ Erreur lors de la validation du produit:', error);
+      throw new Error(`Échec de la mise à jour: ${error.message}`);
+    }
+
+    console.log('✅ Validation produit réussie, données mises à jour:', data?.[0]);
+
+    // Mettre à jour le statut global
+    await checkAndUpdateOverallStatus(orderId, validationType);
+
+    return true;
   } catch (error) {
     console.error('❌ Erreur lors de la validation du produit:', error);
-    return false;
+    // Renvoyer l'erreur au lieu de retourner false pour avoir un message plus détaillé
+    throw error;
   }
 }
 
@@ -2642,6 +2846,288 @@ export async function markProductionOrderAsPartial(
     return true;
   } catch (error) {
     console.error('Erreur marquage production partielle:', error);
+    return false;
+  }
+}
+
+// =====================================================
+// GESTION DES PACKS
+// =====================================================
+
+export async function getPacks(): Promise<Pack[]> {
+  try {
+    const { data: packsData, error: packsError } = await supabase
+      .from('packs')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (packsError) {
+      console.error('Erreur récupération packs:', packsError);
+      return [];
+    }
+
+    if (!packsData) return [];
+
+    // Récupérer les items pour chaque pack
+    const packs: Pack[] = await Promise.all(
+      packsData.map(async (pack) => {
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('pack_items')
+          .select('*')
+          .eq('pack_id', pack.id);
+
+        if (itemsError) {
+          console.error('Erreur récupération items pack:', itemsError);
+        }
+
+        return {
+          id: pack.id,
+          name: pack.name,
+          description: pack.description,
+          items: itemsData?.map(item => ({
+            productId: item.product_id,
+            quantity: item.quantity,
+            notes: item.notes
+          })) || [],
+          totalPrice: Number(pack.total_price),
+          discount: pack.discount ? Number(pack.discount) : undefined,
+          imageUrl: pack.image_url,
+          isActive: pack.is_active,
+          createdAt: new Date(pack.created_at),
+          updatedAt: new Date(pack.updated_at),
+          createdBy: pack.created_by
+        };
+      })
+    );
+
+    return packs;
+  } catch (error) {
+    console.error('Erreur récupération packs:', error);
+    return [];
+  }
+}
+
+export async function getPackById(packId: string): Promise<Pack | null> {
+  try {
+    const { data: pack, error: packError } = await supabase
+      .from('packs')
+      .select('*')
+      .eq('id', packId)
+      .single();
+
+    if (packError || !pack) {
+      console.error('Erreur récupération pack:', packError);
+      return null;
+    }
+
+    const { data: itemsData, error: itemsError } = await supabase
+      .from('pack_items')
+      .select('*')
+      .eq('pack_id', pack.id);
+
+    if (itemsError) {
+      console.error('Erreur récupération items pack:', itemsError);
+    }
+
+    return {
+      id: pack.id,
+      name: pack.name,
+      description: pack.description,
+      items: itemsData?.map(item => ({
+        productId: item.product_id,
+        quantity: item.quantity,
+        notes: item.notes
+      })) || [],
+      totalPrice: Number(pack.total_price),
+      discount: pack.discount ? Number(pack.discount) : undefined,
+      imageUrl: pack.image_url,
+      isActive: pack.is_active,
+      createdAt: new Date(pack.created_at),
+      updatedAt: new Date(pack.updated_at),
+      createdBy: pack.created_by
+    };
+  } catch (error) {
+    console.error('Erreur récupération pack:', error);
+    return null;
+  }
+}
+
+export async function createPack(packData: {
+  name: string;
+  description?: string;
+  items: Array<{ productId: string; quantity: number; notes?: string }>;
+  totalPrice: number;
+  discount?: number;
+  imageUrl?: string;
+  isActive?: boolean;
+  createdBy?: string;
+}): Promise<Pack | null> {
+  try {
+    console.log('📦 Création pack:', packData);
+
+    // Créer le pack
+    const { data: pack, error: packError } = await supabase
+      .from('packs')
+      .insert({
+        name: packData.name,
+        description: packData.description,
+        total_price: packData.totalPrice,
+        discount: packData.discount || 0,
+        image_url: packData.imageUrl,
+        is_active: packData.isActive !== undefined ? packData.isActive : true,
+        created_by: packData.createdBy
+      })
+      .select()
+      .single();
+
+    if (packError) {
+      console.error('Erreur création pack:', packError);
+      throw packError;
+    }
+
+    // Créer les items du pack
+    if (packData.items.length > 0) {
+      const packItems = packData.items.map(item => ({
+        pack_id: pack.id,
+        product_id: item.productId,
+        quantity: item.quantity,
+        notes: item.notes
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('pack_items')
+        .insert(packItems);
+
+      if (itemsError) {
+        console.error('Erreur création items pack:', itemsError);
+        // Supprimer le pack si échec création items
+        await supabase.from('packs').delete().eq('id', pack.id);
+        throw itemsError;
+      }
+    }
+
+    console.log('✅ Pack créé avec succès:', pack.id);
+    return await getPackById(pack.id);
+  } catch (error) {
+    console.error('Erreur création pack:', error);
+    return null;
+  }
+}
+
+export async function updatePack(
+  packId: string,
+  packData: {
+    name?: string;
+    description?: string;
+    items?: Array<{ productId: string; quantity: number; notes?: string }>;
+    totalPrice?: number;
+    discount?: number;
+    imageUrl?: string;
+    isActive?: boolean;
+  }
+): Promise<Pack | null> {
+  try {
+    console.log('📦 Mise à jour pack:', packId, packData);
+
+    // Préparer les données de mise à jour du pack
+    const updateData: any = {};
+    if (packData.name !== undefined) updateData.name = packData.name;
+    if (packData.description !== undefined) updateData.description = packData.description;
+    if (packData.totalPrice !== undefined) updateData.total_price = packData.totalPrice;
+    if (packData.discount !== undefined) updateData.discount = packData.discount;
+    if (packData.imageUrl !== undefined) updateData.image_url = packData.imageUrl;
+    if (packData.isActive !== undefined) updateData.is_active = packData.isActive;
+
+    // Mettre à jour le pack
+    const { error: packError } = await supabase
+      .from('packs')
+      .update(updateData)
+      .eq('id', packId);
+
+    if (packError) {
+      console.error('Erreur mise à jour pack:', packError);
+      throw packError;
+    }
+
+    // Mettre à jour les items si fournis
+    if (packData.items !== undefined) {
+      // Supprimer les anciens items
+      const { error: deleteError } = await supabase
+        .from('pack_items')
+        .delete()
+        .eq('pack_id', packId);
+
+      if (deleteError) {
+        console.error('Erreur suppression anciens items:', deleteError);
+        throw deleteError;
+      }
+
+      // Créer les nouveaux items
+      if (packData.items.length > 0) {
+        const packItems = packData.items.map(item => ({
+          pack_id: packId,
+          product_id: item.productId,
+          quantity: item.quantity,
+          notes: item.notes
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('pack_items')
+          .insert(packItems);
+
+        if (itemsError) {
+          console.error('Erreur création nouveaux items:', itemsError);
+          throw itemsError;
+        }
+      }
+    }
+
+    console.log('✅ Pack mis à jour avec succès:', packId);
+    return await getPackById(packId);
+  } catch (error) {
+    console.error('Erreur mise à jour pack:', error);
+    return null;
+  }
+}
+
+export async function deletePack(packId: string): Promise<boolean> {
+  try {
+    console.log('🗑️ Suppression pack:', packId);
+
+    // Les items seront supprimés automatiquement grâce à ON DELETE CASCADE
+    const { error } = await supabase
+      .from('packs')
+      .delete()
+      .eq('id', packId);
+
+    if (error) {
+      console.error('Erreur suppression pack:', error);
+      return false;
+    }
+
+    console.log('✅ Pack supprimé avec succès:', packId);
+    return true;
+  } catch (error) {
+    console.error('Erreur suppression pack:', error);
+    return false;
+  }
+}
+
+export async function togglePackActive(packId: string, isActive: boolean): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('packs')
+      .update({ is_active: isActive })
+      .eq('id', packId);
+
+    if (error) {
+      console.error('Erreur activation/désactivation pack:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Erreur activation/désactivation pack:', error);
     return false;
   }
 }

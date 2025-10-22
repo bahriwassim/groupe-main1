@@ -147,7 +147,8 @@ const ProductForm = ({ product, onSave, onCancel, allProducts }: { product?: Pro
     setIsSubmitting(true);
     try {
       // S'assurer que l'ID est défini correctement
-      const finalId = product?.id || data.customId || await generateProductId(data.category, allProducts);
+      // Permettre la modification d'ID si l'utilisateur le souhaite
+      const finalId = data.customId || product?.id || await generateProductId(data.category, allProducts);
 
       const productData = {
         ...data,
@@ -157,6 +158,12 @@ const ProductForm = ({ product, onSave, onCancel, allProducts }: { product?: Pro
       } as Product;
 
       console.log('🔍 Données produit à sauvegarder:', productData);
+
+      // Si modification d'ID, on doit gérer le changement
+      if (product && finalId !== product.id) {
+        console.log('⚠️ Changement d\'ID détecté:', product.id, '→', finalId);
+      }
+
       await onSave(productData);
 
       const isNew = !product;
@@ -209,25 +216,21 @@ const ProductForm = ({ product, onSave, onCancel, allProducts }: { product?: Pro
                       <Input
                         placeholder="ex: GT0001"
                         {...field}
-                        disabled={!!product}
-                        className={product ? "bg-muted cursor-not-allowed" : ""}
                       />
                     </FormControl>
-                    {!product && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={regenerateId}
-                        className="shrink-0"
-                      >
-                        Générer
-                      </Button>
-                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={regenerateId}
+                      className="shrink-0"
+                    >
+                      {product ? 'Régénérer' : 'Générer'}
+                    </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {product
-                      ? "L'ID ne peut pas être modifié pour les produits existants"
+                      ? "⚠️ Attention : modifier l'ID peut affecter les commandes et OF existants"
                       : "ID automatique basé sur l'abréviation de catégorie + numéro séquentiel"}
                   </p>
                   <FormMessage />
@@ -403,7 +406,10 @@ export default function ProductCatalog() {
       if (isNew) {
         await createProduct(productData);
       } else {
-        await updateProduct(productData.id, productData);
+        // IMPORTANT: On passe l'ancien ID en premier paramètre, et le produit avec le nouvel ID en second
+        const oldId = productToEdit.id;
+        console.log('🔍 Sauvegarde produit:', { oldId, newId: productData.id, changed: oldId !== productData.id });
+        await updateProduct(oldId, productData);
       }
 
       // Reload products to reflect changes

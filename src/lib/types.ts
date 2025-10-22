@@ -71,6 +71,7 @@ export interface Order {
   notes?: string;
   labDeliveryHours?: number; // Nouveau: temps de livraison laboratoire (défaut 2h)
   qualityDetails?: OrderQualityDetails; // Nouveau: détails qualité/quantité
+  createdBy?: string; // Nom de l'utilisateur qui a créé la commande
 }
 
 // Nouveaux types pour la validation de production
@@ -131,4 +132,25 @@ export interface OrderQualityDetails {
 
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Types pour les Packs (ensembles de produits)
+export interface PackItem {
+  productId: string;
+  quantity: number;
+  notes?: string;
+}
+
+export interface Pack {
+  id: string;
+  name: string;
+  description?: string;
+  items: PackItem[];
+  totalPrice: number; // Prix total du pack (peut être différent de la somme des produits)
+  discount?: number; // Réduction appliquée au pack
+  imageUrl?: string;
+  isActive: boolean; // Le pack est-il disponible à la vente
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy?: string; // Nom de l'utilisateur qui a créé le pack
 }

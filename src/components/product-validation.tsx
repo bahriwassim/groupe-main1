@@ -229,15 +229,14 @@ export function ProductValidation({ orderId, items, onUpdate, orderStatus }: Pro
     try {
       console.log('🚀 Démarrage validation:', { item: item.productName, validationType, status });
 
-      // Générer un ID utilisateur basé sur le rôle et l'heure actuelle
-      const userId = `${role.toLowerCase()}-${Date.now()}`;
-
+      // Ne pas envoyer d'userId car la colonne est UUID dans la BD
+      // Le champ sera laissé à NULL
       const success = await validateProductionOrderItem(
         orderId,
         item.id,
         validationType,
         status,
-        userId,
+        undefined, // Ne pas envoyer d'userId
         quantityProduced,
         notes
       );
